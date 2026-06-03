@@ -22,6 +22,7 @@ const elements = {
 const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
 const isCallPage = elements.body.dataset.page === "call";
 const voiceStorageKey = "ebotVoiceName";
+const SENSEVOICE_MARKER_PATTERN = /^[\s\uFEFF\u200B]*(?:<\|[^|<>]+\|>[\s\uFEFF\u200B]*)+/;
 
 const state = {
   active: false,
@@ -311,8 +312,12 @@ function getLiveKitMicrophoneStream(room, Track) {
   return mediaTrack ? new MediaStream([mediaTrack]) : null;
 }
 
+function stripSenseVoiceMarkers(text) {
+  return String(text || "").replace(SENSEVOICE_MARKER_PATTERN, "").trim();
+}
+
 function appendLiveKitText(role, text) {
-  const cleanText = String(text || "").trim();
+  const cleanText = stripSenseVoiceMarkers(text);
   if (!cleanText) {
     return;
   }

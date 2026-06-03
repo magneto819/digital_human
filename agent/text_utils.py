@@ -1,7 +1,7 @@
 import re
 
 
-SENSEVOICE_MARKER_PATTERN = re.compile(r"^(?:<\|[^|<>]+\|>\s*)+")
+SENSEVOICE_MARKER_PATTERN = re.compile(r"^[\s\ufeff\u200b]*(?:<\|[^|<>]+\|>[\s\ufeff\u200b]*)+")
 STAGE_DIRECTION_PATTERN = re.compile(r"\s*(?:（[^（）]{1,40}）|\([^()]{1,40}\))\s*")
 
 

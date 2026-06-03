@@ -103,6 +103,12 @@ test("voice recognition permission errors stop restart loops", () => {
   assert.match(appJs, /!state\.recognitionBlocked/);
 });
 
+test("voice-call page hides SenseVoice prompt tokens from visible chat", () => {
+  assert.match(appJs, /stripSenseVoiceMarkers/);
+  assert.match(appJs, /SENSEVOICE_MARKER_PATTERN/);
+  assert.match(appJs, /stripSenseVoiceMarkers\(text\)/);
+});
+
 test("voice-call page starts a real LiveKit audio session", async () => {
   const callHtml = await readFile(new URL("../public/call.html", import.meta.url), "utf8");
 

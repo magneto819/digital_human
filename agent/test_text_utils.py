@@ -14,6 +14,13 @@ def test_strip_sensevoice_markers_removes_prefix_tokens() -> None:
     )
 
 
+def test_strip_sensevoice_markers_removes_tokens_after_leading_whitespace() -> None:
+    assert (
+        strip_sensevoice_markers(" \n\t<|zh|><|NEUTRAL|><|Speech|><|withitn|>你好，世宝。")
+        == "你好，世宝。"
+    )
+
+
 def test_strip_sensevoice_markers_keeps_normal_text() -> None:
     assert strip_sensevoice_markers("你好，我是势宝") == "你好，我是势宝"
 
