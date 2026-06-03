@@ -1,0 +1,12 @@
+-r requirements.txt
+
+# SenseVoice runtime. The exact versions depend on the CUDA/PyTorch image used by the GPU host.
+funasr>=1.2
+modelscope>=1.20
+torch>=2.3
+torchaudio>=2.3
+
+# CosyVoice2 is normally installed from the official repository rather than this file:
+#   git clone https://github.com/FunAudioLLM/CosyVoice.git /opt/CosyVoice
+#   pip install -r /opt/CosyVoice/requirements.txt
+#   export PYTHONPATH=/opt/CosyVoice/third_party/Matcha-TTS:/opt/CosyVoice:$PYTHONPATH

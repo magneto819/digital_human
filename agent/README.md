@@ -28,6 +28,20 @@ SENSEVOICE_SAMPLE_RATE=16000
 EBOT_INSTRUCTIONS="custom E-Bot persona"
 ```
 
+If you use the included `voice-service`, point the worker at its two endpoints:
+
+```bash
+SENSEVOICE_TRANSCRIBE_URL=https://voice.example.com/transcribe
+COSYVOICE2_SPEECH_URL=https://voice.example.com/speech
+```
+
+When `VOICE_SERVICE_API_KEY` is enabled on `voice-service`, set both worker keys to that same value:
+
+```bash
+SENSEVOICE_API_KEY=...
+COSYVOICE2_API_KEY=...
+```
+
 ## External Service Contracts
 
 SenseVoice endpoint:

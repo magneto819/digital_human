@@ -1,5 +1,6 @@
 .vercel
 .playwright-cli/
+.venv/
 __pycache__/
 *.pyc
 node_modules/
