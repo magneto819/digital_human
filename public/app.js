@@ -7,12 +7,14 @@ const elements = {
   clearButton: document.querySelector("#clearButton"),
   connectionLabel: document.querySelector("#connectionLabel"),
   elapsedLabel: document.querySelector("#elapsedLabel"),
+  fpsBadge: document.querySelector("#fpsBadge"),
   localMeter: document.querySelector("#localMeter"),
   muteButton: document.querySelector("#muteButton"),
   remoteAudio: document.querySelector("#remoteAudio"),
   sendTextButton: document.querySelector("#sendTextButton"),
   startButton: document.querySelector("#startButton"),
   statusLabel: document.querySelector("#statusLabel"),
+  statusStartButton: document.querySelector("#statusStartButton"),
   stopButton: document.querySelector("#stopButton"),
 };
 
@@ -25,6 +27,9 @@ const state = {
   callStartedAt: null,
   dataChannel: null,
   elapsedTimer: null,
+  fpsFrame: null,
+  fpsLastTime: 0,
+  fpsSampleCount: 0,
   localStream: null,
   micAnalyser: null,
   micSource: null,
@@ -64,15 +69,22 @@ function setStatus(status, detail) {
   }
 }
 
-function setControls(active) {
-  if (elements.startButton && elements.startButton.tagName === "BUTTON") {
-    elements.startButton.disabled = active;
-    elements.startButton.classList.toggle("is-active", active);
-    const startLabel = elements.startButton.querySelector("span");
-    if (startLabel) {
-      startLabel.textContent = state.realtimeConnecting ? "连接中" : active ? "通话中" : "接听";
-    }
+function setStartButtonState(button, active) {
+  if (!button || button.tagName !== "BUTTON") {
+    return;
   }
+
+  button.disabled = active;
+  button.classList.toggle("is-active", active);
+  const label = button.querySelector("span");
+  if (label) {
+    label.textContent = state.realtimeConnecting ? "连接中" : active ? "通话中" : "接听";
+  }
+}
+
+function setControls(active) {
+  setStartButtonState(elements.startButton, active);
+  setStartButtonState(elements.statusStartButton, active);
 
   if (elements.answerButton) {
     elements.answerButton.disabled = active;
@@ -92,6 +104,31 @@ function setControls(active) {
     elements.sendTextButton.disabled = state.sending;
     elements.sendTextButton.textContent = state.sending ? "Sending" : "Send";
   }
+}
+
+function startFpsTicker() {
+  if (!elements.fpsBadge || state.fpsFrame) {
+    return;
+  }
+
+  const tick = (timestamp) => {
+    if (!state.fpsLastTime) {
+      state.fpsLastTime = timestamp;
+    }
+
+    state.fpsSampleCount += 1;
+    const elapsed = timestamp - state.fpsLastTime;
+    if (elapsed >= 600) {
+      const fps = Math.round((state.fpsSampleCount * 1000) / elapsed);
+      elements.fpsBadge.textContent = `${fps} FPS`;
+      state.fpsLastTime = timestamp;
+      state.fpsSampleCount = 0;
+    }
+
+    state.fpsFrame = window.requestAnimationFrame(tick);
+  };
+
+  state.fpsFrame = window.requestAnimationFrame(tick);
 }
 
 function updateMeter(level = 0.18) {
@@ -686,8 +723,10 @@ function initializeCallPage() {
   setControls(false);
   setStatus("standby");
   updateMeter(0.08);
+  startFpsTicker();
 
   elements.startButton?.addEventListener("click", startCall);
+  elements.statusStartButton?.addEventListener("click", startCall);
   elements.stopButton?.addEventListener("click", stopCall);
   elements.muteButton?.addEventListener("click", toggleMute);
   elements.clearButton?.addEventListener("click", clearChat);

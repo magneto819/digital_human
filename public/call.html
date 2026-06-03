@@ -17,7 +17,7 @@
           <span>Back</span>
         </a>
 
-        <div class="fps-badge" aria-hidden="true">0 FPS</div>
+        <div class="fps-badge" id="fpsBadge" aria-hidden="true">LIVE</div>
 
         <div class="call-status-card" aria-live="polite">
           <span class="mini-avatar" aria-hidden="true">EB</span>
@@ -26,6 +26,14 @@
             <span id="statusLabel">语音通话邀请</span>
           </div>
           <span id="connectionLabel">待连接</span>
+          <button class="call-status-action" id="statusStartButton" type="button" aria-label="接听势宝语音通话">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M12 15a3 3 0 0 0 3-3V7a3 3 0 0 0-6 0v5a3 3 0 0 0 3 3Z" />
+              <path d="M19 11a7 7 0 0 1-14 0" />
+              <path d="M12 18v3" />
+            </svg>
+            <span>接听</span>
+          </button>
         </div>
 
         <div class="call-mascot-wrap">
@@ -102,26 +110,9 @@
         </header>
 
         <div class="chat-log" id="chatLog" aria-live="polite">
-          <p class="history-divider">All history loaded</p>
-          <article class="chat-message user">
-            <p>您好</p>
-          </article>
-          <article class="chat-message user">
-            <p>您是做什么的</p>
-          </article>
-          <p class="history-divider">Previous conversation</p>
-          <article class="chat-message assistant">
-            <p>你好呀，我是势宝，北京具身势能科技有限公司的 E-Bot。很高兴和你实时语音聊天。</p>
-          </article>
-          <article class="chat-message user wide">
-            <p>然后再进行维修。</p>
-          </article>
-          <article class="chat-message assistant">
-            <p>好的，明白了。维修前确认步骤很重要，这样能确保后续操作更顺利。你是在处理什么设备的维修呢？</p>
-          </article>
           <p class="history-divider">Current conversation</p>
           <article class="chat-message assistant current">
-            <p>你好，我在。今天想聊点什么？</p>
+            <p>你好，我在。点击接听开始实时语音，或直接在下方输入消息。</p>
           </article>
         </div>
 

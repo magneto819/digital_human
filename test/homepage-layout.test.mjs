@@ -4,6 +4,7 @@ import test from "node:test";
 
 const html = await readFile(new URL("../public/index.html", import.meta.url), "utf8");
 const appJs = await readFile(new URL("../public/app.js", import.meta.url), "utf8");
+const css = await readFile(new URL("../public/styles.css", import.meta.url), "utf8");
 
 test("homepage presents the E-Bot voice-call hero layout", () => {
   assert.match(html, /E-Bot 专属部署/);
@@ -87,4 +88,19 @@ test("voice-call page starts a real WebRTC audio session", async () => {
   assert.match(appJs, /createDataChannel\("oai-events"\)/);
   assert.match(appJs, /fetch\("\/api\/realtime"/);
   assert.match(appJs, /elements\.remoteAudio\.srcObject/);
+});
+
+test("voice-call page keeps live controls visible in the first viewport", async () => {
+  const callHtml = await readFile(new URL("../public/call.html", import.meta.url), "utf8");
+
+  assert.match(callHtml, /id="statusStartButton"/);
+  assert.match(callHtml, /id="fpsBadge"/);
+  assert.doesNotMatch(callHtml, /All history loaded/);
+  assert.doesNotMatch(callHtml, /Previous conversation/);
+  assert.match(appJs, /elements\.statusStartButton\?\.addEventListener\("click", startCall\)/);
+  assert.match(appJs, /requestAnimationFrame/);
+  assert.match(css, /\.call-page-shell\s*{[^}]*height:\s*100dvh/s);
+  assert.match(css, /\.call-chat-panel\s*{[^}]*height:\s*100dvh/s);
+  assert.match(css, /\.call-mascot-image\s*{[^}]*animation:\s*floatMascot/s);
+  assert.match(css, /\.chat-composer\s*{[^}]*position:\s*sticky/s);
 });
