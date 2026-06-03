@@ -35,13 +35,40 @@ function readRequestBody(request, limit = MAX_BODY_BYTES) {
 }
 
 function missingLiveKitEnv(env) {
-  return REQUIRED_ENV.filter((name) => !env[name]);
+  return REQUIRED_ENV.filter((name) => !getLiveKitEnvValue(env, name));
 }
 
 function sanitizeIdentifier(value, fallbackPrefix) {
   const raw = String(value || "").trim();
   const safe = raw.replace(/[^a-zA-Z0-9_-]/g, "-").replace(/-+/g, "-").slice(0, 80);
   return safe || `${fallbackPrefix}-${randomUUID()}`;
+}
+
+function normalizeEnvValue(value) {
+  const trimmed = String(value || "").trim();
+  const quote = trimmed[0];
+  if ((quote === '"' || quote === "'") && trimmed.endsWith(quote)) {
+    return trimmed.slice(1, -1).trim();
+  }
+  return trimmed;
+}
+
+function normalizeLiveKitUrl(value) {
+  const normalized = normalizeEnvValue(value).replace(/\/+$/, "");
+  if (/^https:\/\//i.test(normalized)) {
+    return normalized.replace(/^https:/i, "wss:");
+  }
+  if (/^http:\/\//i.test(normalized)) {
+    return normalized.replace(/^http:/i, "ws:");
+  }
+  return normalized;
+}
+
+function getLiveKitEnvValue(env, name) {
+  if (name === "LIVEKIT_URL") {
+    return normalizeLiveKitUrl(env[name]);
+  }
+  return normalizeEnvValue(env[name]);
 }
 
 export async function createLiveKitRoomToken({
@@ -103,12 +130,13 @@ export async function handleLiveKitTokenPost(
   }
 
   const agentName = sanitizeIdentifier(env.LIVEKIT_AGENT_NAME || DEFAULT_AGENT_NAME, "agent");
+  const liveKitUrl = getLiveKitEnvValue(env, "LIVEKIT_URL");
   const room = sanitizeIdentifier(payload.room, "ebot");
   const identity = sanitizeIdentifier(payload.identity, "visitor");
   const token = await createToken({
     agentName,
-    apiKey: env.LIVEKIT_API_KEY,
-    apiSecret: env.LIVEKIT_API_SECRET,
+    apiKey: getLiveKitEnvValue(env, "LIVEKIT_API_KEY"),
+    apiSecret: getLiveKitEnvValue(env, "LIVEKIT_API_SECRET"),
     identity,
     room,
   });
@@ -118,7 +146,7 @@ export async function handleLiveKitTokenPost(
     identity,
     room,
     token,
-    url: env.LIVEKIT_URL,
+    url: liveKitUrl,
   });
 }
 

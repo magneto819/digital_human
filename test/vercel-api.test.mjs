@@ -92,6 +92,30 @@ test("handleLiveKitTokenPost returns a room token with agent dispatch metadata",
   });
 });
 
+test("handleLiveKitTokenPost normalizes pasted LiveKit environment values", async () => {
+  const response = createResponse();
+  let capturedApiKey = "";
+  let capturedApiSecret = "";
+
+  await handleLiveKitTokenPost(createRequest("{}"), response, {
+    createToken: async ({ apiKey, apiSecret }) => {
+      capturedApiKey = apiKey;
+      capturedApiSecret = apiSecret;
+      return "header.payload.signature";
+    },
+    env: {
+      LIVEKIT_API_KEY: " 'api-key' ",
+      LIVEKIT_API_SECRET: ' "api-secret" ',
+      LIVEKIT_URL: " https://example.livekit.cloud/ ",
+    },
+  });
+
+  assert.equal(response.statusCode, 200);
+  assert.equal(capturedApiKey, "api-key");
+  assert.equal(capturedApiSecret, "api-secret");
+  assert.equal(JSON.parse(response.body).url, "wss://example.livekit.cloud");
+});
+
 test("handleLiveKitTokenPost creates safe defaults when room and identity are omitted", async () => {
   const response = createResponse();
   let capturedRoom = "";
