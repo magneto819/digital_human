@@ -1,4 +1,4 @@
-import { EBOT_SYSTEM_PROMPT } from "../lib/realtime-session.mjs";
+import { EBOT_SYSTEM_PROMPT } from "../lib/ebot-persona.mjs";
 
 const DEEPSEEK_CHAT_URL = "https://api.deepseek.com/chat/completions";
 const MAX_BODY_BYTES = 1_000_000;

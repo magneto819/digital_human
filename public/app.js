@@ -27,23 +27,23 @@ const state = {
   active: false,
   audioContext: null,
   callStartedAt: null,
-  dataChannel: null,
   elapsedTimer: null,
   fpsFrame: null,
   fpsLastTime: 0,
   fpsSampleCount: 0,
+  liveKitClient: null,
+  liveKitConnected: false,
+  liveKitConnecting: false,
+  liveKitRoom: null,
   localStream: null,
   micAnalyser: null,
   micSource: null,
   meterTimer: null,
   messages: [],
   muted: false,
-  peerConnection: null,
   recognition: null,
   recognitionActive: false,
   recognitionBlocked: false,
-  realtimeConnected: false,
-  realtimeConnecting: false,
   sending: false,
   speechSupported: Boolean(SpeechRecognition),
   speechVoices: [],
@@ -83,7 +83,7 @@ function setStartButtonState(button, active) {
   button.classList.toggle("is-active", active);
   const label = button.querySelector("span");
   if (label) {
-    label.textContent = state.realtimeConnecting ? "连接中" : active ? "通话中" : "接听";
+    label.textContent = state.liveKitConnecting ? "连接中" : active ? "通话中" : "接听";
   }
 }
 
@@ -281,7 +281,7 @@ function appendSystemNotice(key, text) {
   appendChatMessage("system", text);
 }
 
-async function readRealtimeError(response) {
+async function readVoiceSessionError(response) {
   const contentType = response.headers.get("content-type") || "";
   if (contentType.includes("application/json")) {
     const payload = await response.json().catch(() => ({}));
@@ -292,42 +292,60 @@ async function readRealtimeError(response) {
   return text || "实时语音服务暂时不可用。";
 }
 
-function handleRealtimeEvent(event) {
-  let payload;
-  try {
-    payload = JSON.parse(event.data);
-  } catch {
-    return;
+async function loadLiveKitClient() {
+  if (!state.liveKitClient) {
+    state.liveKitClient = await import("/vendor/livekit-client.esm.mjs");
   }
-
-  if (payload.type === "error") {
-    appendSystemNotice(`realtime-${payload.error?.code || "error"}`, payload.error?.message || "实时语音服务返回错误。");
-    return;
-  }
-
-  const transcript = payload.transcript || payload.delta || payload.text;
-  if (!transcript) {
-    return;
-  }
-
-  if (payload.type.includes("input_audio_transcription")) {
-    appendChatMessage("user", transcript);
-    remember("user", transcript);
-    return;
-  }
-
-  if (payload.type.includes("audio_transcript")) {
-    appendChatMessage("assistant", transcript);
-    remember("assistant", transcript);
-  }
+  return state.liveKitClient;
 }
 
-function disconnectRealtimeCall() {
-  if (state.dataChannel) {
-    state.dataChannel.close();
+function createSessionId(prefix) {
+  const bytes = crypto.getRandomValues(new Uint8Array(8));
+  const suffix = Array.from(bytes, (byte) => byte.toString(16).padStart(2, "0")).join("");
+  return `${prefix}-${suffix}`;
+}
+
+function getLiveKitMicrophoneStream(room, Track) {
+  const publication = room.localParticipant.getTrackPublication(Track.Source.Microphone);
+  const mediaTrack = publication?.track?.mediaStreamTrack;
+  return mediaTrack ? new MediaStream([mediaTrack]) : null;
+}
+
+function appendLiveKitText(role, text) {
+  const cleanText = String(text || "").trim();
+  if (!cleanText) {
+    return;
   }
-  if (state.peerConnection) {
-    state.peerConnection.close();
+
+  appendChatMessage(role, cleanText);
+  remember(role === "user" ? "user" : "assistant", cleanText);
+}
+
+function handleLiveKitData(payload, participant) {
+  const rawText = new TextDecoder().decode(payload);
+  let message = { text: rawText };
+  try {
+    message = JSON.parse(rawText);
+  } catch {
+    // Plain text payloads are valid for lightweight workers.
+  }
+
+  const role = participant?.isLocal || message.role === "user" ? "user" : "assistant";
+  appendLiveKitText(role, message.text || message.content || rawText);
+}
+
+function handleLiveKitTranscription(segments, participant) {
+  const role = participant?.isLocal ? "user" : "assistant";
+  segments.forEach((segment) => {
+    if (segment?.final || segment?.isFinal) {
+      appendLiveKitText(role, segment.text);
+    }
+  });
+}
+
+function disconnectLiveKitCall() {
+  if (state.liveKitRoom) {
+    state.liveKitRoom.disconnect();
   }
   if (state.localStream) {
     state.localStream.getTracks().forEach((track) => track.stop());
@@ -336,88 +354,82 @@ function disconnectRealtimeCall() {
     elements.remoteAudio.srcObject = null;
   }
 
-  state.dataChannel = null;
+  state.liveKitConnected = false;
+  state.liveKitConnecting = false;
+  state.liveKitRoom = null;
   state.localStream = null;
-  state.peerConnection = null;
-  state.realtimeConnected = false;
-  state.realtimeConnecting = false;
   stopMicMeter();
 }
 
-async function connectRealtimeCall() {
-  if (!navigator.mediaDevices?.getUserMedia || !window.RTCPeerConnection) {
+async function connectLiveKitCall() {
+  if (!navigator.mediaDevices?.getUserMedia) {
     throw new Error("当前浏览器不支持实时语音通话。");
   }
 
-  const localStream = await navigator.mediaDevices.getUserMedia({
-    audio: {
-      autoGainControl: true,
-      echoCancellation: true,
-      noiseSuppression: true,
-    },
-    video: false,
-  });
-  state.localStream = localStream;
-  startMicMeter(localStream);
-
-  const peerConnection = new RTCPeerConnection();
-  const remoteStream = new MediaStream();
-  state.peerConnection = peerConnection;
-
-  localStream.getAudioTracks().forEach((track) => {
-    peerConnection.addTrack(track, localStream);
-  });
-
-  peerConnection.ontrack = (event) => {
-    event.streams[0]?.getAudioTracks().forEach((track) => remoteStream.addTrack(track));
-    if (elements.remoteAudio) {
-      elements.remoteAudio.srcObject = remoteStream;
-      elements.remoteAudio.play().catch(() => {});
-    }
-  };
-
-  peerConnection.onconnectionstatechange = () => {
-    if (peerConnection.connectionState === "connected") {
-      state.realtimeConnected = true;
-      state.realtimeConnecting = false;
-      setControls(true);
-      setStatus("listening", "实时语音已连接，直接说话");
-    }
-
-    if (peerConnection.connectionState === "failed" || peerConnection.connectionState === "disconnected") {
-      appendSystemNotice("realtime-connection", "实时语音连接中断，可以继续使用右侧文字聊天。");
-      setStatus("error", "实时语音连接中断");
-    }
-  };
-
-  const dataChannel = peerConnection.createDataChannel("oai-events");
-  state.dataChannel = dataChannel;
-  dataChannel.onopen = () => {
-    appendChatMessage("assistant", "实时语音已接通。你可以直接说话，也可以在右侧打字。");
-    setStatus("listening", "实时语音已连接，直接说话");
-  };
-  dataChannel.onmessage = handleRealtimeEvent;
-  dataChannel.onerror = () => {
-    appendSystemNotice("realtime-data", "实时语音事件通道异常，可以继续使用右侧文字聊天。");
-  };
-
-  const offer = await peerConnection.createOffer({ offerToReceiveAudio: true });
-  await peerConnection.setLocalDescription(offer);
-
-  const response = await fetch("/api/realtime", {
+  const response = await fetch("/api/livekit-token", {
     method: "POST",
     headers: {
-      "Content-Type": "application/sdp",
+      "Content-Type": "application/json",
     },
-    body: offer.sdp,
+    body: JSON.stringify({
+      identity: createSessionId("visitor"),
+      room: createSessionId("ebot"),
+    }),
   });
 
   if (!response.ok) {
-    throw new Error(await readRealtimeError(response));
+    throw new Error(await readVoiceSessionError(response));
   }
 
-  const answer = await response.text();
-  await peerConnection.setRemoteDescription({ type: "answer", sdp: answer });
+  const tokenPayload = await response.json();
+  const { Room, RoomEvent, Track } = await loadLiveKitClient();
+  const room = new Room({
+    adaptiveStream: true,
+    dynacast: true,
+  });
+  state.liveKitRoom = room;
+
+  room.on(RoomEvent.TrackSubscribed, (track) => {
+    if (track.kind === Track.Kind.Audio && elements.remoteAudio) {
+      track.attach(elements.remoteAudio);
+      elements.remoteAudio.play().catch(() => {});
+    }
+  });
+  room.on(RoomEvent.TrackUnsubscribed, (track) => {
+    track.detach?.();
+  });
+  room.on(RoomEvent.DataReceived, handleLiveKitData);
+  room.on(RoomEvent.TranscriptionReceived, handleLiveKitTranscription);
+  room.on(RoomEvent.Connected, () => {
+    state.liveKitConnected = true;
+    state.liveKitConnecting = false;
+    setControls(true);
+    setStatus("listening", "实时语音已连接，直接说话");
+  });
+  room.on(RoomEvent.Disconnected, () => {
+    state.liveKitConnected = false;
+    state.liveKitConnecting = false;
+    if (state.active) {
+      appendSystemNotice("livekit-disconnected", "实时语音连接中断，可以继续使用右侧文字聊天。");
+      setStatus("error", "实时语音连接中断");
+    }
+  });
+
+  await room.connect(tokenPayload.url, tokenPayload.token, { autoSubscribe: true });
+  await room.localParticipant.setMicrophoneEnabled(true, {
+    autoGainControl: true,
+    echoCancellation: true,
+    noiseSuppression: true,
+  });
+
+  state.localStream = getLiveKitMicrophoneStream(room, Track);
+  if (state.localStream) {
+    startMicMeter(state.localStream);
+  } else {
+    startMeter(() => 0.42);
+  }
+
+  appendChatMessage("assistant", "实时语音已接通。你可以直接说话，也可以在右侧打字。");
 }
 
 function clearChat() {
@@ -716,7 +728,7 @@ async function sendMessage(text, options = {}) {
     if (!state.localStream) {
       startMeter(() => 0.14);
     }
-    if (state.active && !state.realtimeConnected) {
+    if (state.active && !state.liveKitConnected) {
       startRecognition();
     } else if (!state.localStream) {
       window.setTimeout(stopMeter, 700);
@@ -743,29 +755,29 @@ function startBrowserVoiceFallback() {
 }
 
 async function startCall() {
-  if (state.active || state.realtimeConnecting) {
+  if (state.active || state.liveKitConnecting) {
     return;
   }
 
   state.active = true;
   state.muted = false;
   state.recognitionBlocked = false;
-  state.realtimeConnecting = true;
+  state.liveKitConnecting = true;
   state.systemNotices.clear();
   setControls(true);
   setStatus("connecting", "正在连接实时语音");
   startElapsedTimer();
 
   try {
-    await connectRealtimeCall();
-    state.realtimeConnected = true;
-    state.realtimeConnecting = false;
+    await connectLiveKitCall();
+    state.liveKitConnected = true;
+    state.liveKitConnecting = false;
     setControls(true);
     setStatus("listening", "实时语音已连接，直接说话");
   } catch (error) {
-    disconnectRealtimeCall();
-    appendSystemNotice("realtime-fallback", `${getMicrophoneErrorMessage(error)} 已切换到聊天框回复。`);
-    state.realtimeConnecting = false;
+    disconnectLiveKitCall();
+    appendSystemNotice("livekit-fallback", `${getMicrophoneErrorMessage(error)} 已切换到聊天框回复。`);
+    state.liveKitConnecting = false;
     setControls(true);
     startBrowserVoiceFallback();
   }
@@ -777,7 +789,7 @@ function stopCall() {
   state.recognitionBlocked = false;
   state.sending = false;
   state.systemNotices.clear();
-  disconnectRealtimeCall();
+  disconnectLiveKitCall();
   stopRecognition();
   stopMeter();
   stopElapsedTimer();
@@ -824,7 +836,7 @@ function sendTextMessage(event) {
 
   elements.chatInput.value = "";
   stopRecognition();
-  sendMessage(text, { speak: state.active && !state.realtimeConnected });
+  sendMessage(text, { speak: state.active && !state.liveKitConnected });
 }
 
 function initializeHomePage() {

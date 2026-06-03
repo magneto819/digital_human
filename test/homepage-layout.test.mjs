@@ -103,15 +103,19 @@ test("voice recognition permission errors stop restart loops", () => {
   assert.match(appJs, /!state\.recognitionBlocked/);
 });
 
-test("voice-call page starts a real WebRTC audio session", async () => {
+test("voice-call page starts a real LiveKit audio session", async () => {
   const callHtml = await readFile(new URL("../public/call.html", import.meta.url), "utf8");
 
   assert.match(callHtml, /id="remoteAudio"/);
-  assert.match(appJs, /navigator\.mediaDevices\.getUserMedia/);
-  assert.match(appJs, /new RTCPeerConnection\(/);
-  assert.match(appJs, /createDataChannel\("oai-events"\)/);
-  assert.match(appJs, /fetch\("\/api\/realtime"/);
-  assert.match(appJs, /elements\.remoteAudio\.srcObject/);
+  assert.match(appJs, /import\("\/vendor\/livekit-client\.esm\.mjs"\)/);
+  assert.match(appJs, /fetch\("\/api\/livekit-token"/);
+  assert.match(appJs, /new Room\(/);
+  assert.match(appJs, /RoomEvent\.TrackSubscribed/);
+  assert.match(appJs, /setMicrophoneEnabled\(true/);
+  assert.match(appJs, /track\.attach\(elements\.remoteAudio\)/);
+  assert.doesNotMatch(appJs, /new RTCPeerConnection\(/);
+  assert.doesNotMatch(appJs, /createDataChannel\("oai-events"\)/);
+  assert.doesNotMatch(appJs, /fetch\("\/api\/realtime"/);
 });
 
 test("voice-call page keeps live controls visible in the first viewport", async () => {

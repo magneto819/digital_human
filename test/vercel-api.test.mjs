@@ -2,9 +2,9 @@ import assert from "node:assert/strict";
 import { Readable } from "node:stream";
 import test from "node:test";
 
-import { handleRealtimePost } from "../api/realtime.mjs";
+import { handleLiveKitTokenPost } from "../api/livekit-token.mjs";
 
-function createRequest(body, method = "POST") {
+function createRequest(body = "{}", method = "POST") {
   const request = Readable.from([body]);
   request.method = method;
   return request;
@@ -31,66 +31,86 @@ function createResponse() {
   };
 }
 
-test("handleRealtimePost returns a clear error when OPENAI_API_KEY is missing", async () => {
+test("handleLiveKitTokenPost returns a clear error when LiveKit env is missing", async () => {
   const response = createResponse();
 
-  await handleRealtimePost(createRequest("v=0"), response, { env: {} });
+  await handleLiveKitTokenPost(createRequest(), response, { env: {} });
 
   assert.equal(response.statusCode, 500);
   assert.match(response.headers["content-type"], /application\/json/);
   assert.deepEqual(JSON.parse(response.body), {
-    detail: "Start the server with OPENAI_API_KEY in the environment.",
-    error: "OPENAI_API_KEY is not configured.",
+    detail: "Set LIVEKIT_URL, LIVEKIT_API_KEY, and LIVEKIT_API_SECRET in the environment.",
+    error: "LiveKit is not configured.",
+    missing: ["LIVEKIT_URL", "LIVEKIT_API_KEY", "LIVEKIT_API_SECRET"],
   });
 });
 
-test("handleRealtimePost rejects invalid SDP before contacting OpenAI", async () => {
+test("handleLiveKitTokenPost rejects non-JSON request bodies", async () => {
   const response = createResponse();
-  let called = false;
 
-  await handleRealtimePost(createRequest("not an sdp"), response, {
-    env: { OPENAI_API_KEY: "test-key" },
-    fetchImpl: async () => {
-      called = true;
+  await handleLiveKitTokenPost(createRequest("not json"), response, {
+    env: {
+      LIVEKIT_API_KEY: "api-key",
+      LIVEKIT_API_SECRET: "api-secret",
+      LIVEKIT_URL: "wss://example.livekit.cloud",
     },
   });
 
   assert.equal(response.statusCode, 400);
-  assert.equal(called, false);
-  assert.equal(JSON.parse(response.body).error, "Expected a WebRTC SDP offer.");
+  assert.equal(JSON.parse(response.body).error, "Expected a JSON request body.");
 });
 
-test("handleRealtimePost proxies a valid SDP offer to OpenAI Realtime", async () => {
+test("handleLiveKitTokenPost returns a room token with agent dispatch metadata", async () => {
   const response = createResponse();
-  let capturedUrl = "";
-  let capturedAuth = "";
-  let capturedSession = "";
-  let capturedSdp = "";
 
-  await handleRealtimePost(createRequest("v=0\nfake-offer"), response, {
-    env: {
-      EBOT_INSTRUCTIONS: "custom E-Bot",
-      OPENAI_API_KEY: "test-key",
-      OPENAI_REALTIME_MODEL: "gpt-realtime-mini",
-      OPENAI_REALTIME_VOICE: "cedar",
+  await handleLiveKitTokenPost(
+    createRequest(JSON.stringify({ room: "ebot-test-room", identity: "visitor-1" })),
+    response,
+    {
+      createToken: async ({ agentName, identity, room }) => {
+        assert.equal(agentName, "ebot-agent");
+        assert.equal(identity, "visitor-1");
+        assert.equal(room, "ebot-test-room");
+        return "header.payload.signature";
+      },
+      env: {
+        LIVEKIT_AGENT_NAME: "ebot-agent",
+        LIVEKIT_API_KEY: "api-key",
+        LIVEKIT_API_SECRET: "api-secret",
+        LIVEKIT_URL: "wss://example.livekit.cloud",
+      },
     },
-    fetchImpl: async (url, options) => {
-      capturedUrl = url;
-      capturedAuth = options.headers.Authorization;
-      capturedSdp = options.body.get("sdp");
-      capturedSession = options.body.get("session");
-      return new Response("v=0\nfake-answer", { status: 200 });
+  );
+
+  assert.equal(response.statusCode, 200);
+  assert.deepEqual(JSON.parse(response.body), {
+    agentName: "ebot-agent",
+    identity: "visitor-1",
+    room: "ebot-test-room",
+    token: "header.payload.signature",
+    url: "wss://example.livekit.cloud",
+  });
+});
+
+test("handleLiveKitTokenPost creates safe defaults when room and identity are omitted", async () => {
+  const response = createResponse();
+  let capturedRoom = "";
+  let capturedIdentity = "";
+
+  await handleLiveKitTokenPost(createRequest("{}"), response, {
+    createToken: async ({ identity, room }) => {
+      capturedRoom = room;
+      capturedIdentity = identity;
+      return "token";
+    },
+    env: {
+      LIVEKIT_API_KEY: "api-key",
+      LIVEKIT_API_SECRET: "api-secret",
+      LIVEKIT_URL: "wss://example.livekit.cloud",
     },
   });
 
-  const session = JSON.parse(capturedSession);
   assert.equal(response.statusCode, 200);
-  assert.equal(response.headers["content-type"], "application/sdp");
-  assert.equal(response.body, "v=0\nfake-answer");
-  assert.equal(capturedUrl, "https://api.openai.com/v1/realtime/calls");
-  assert.equal(capturedAuth, "Bearer test-key");
-  assert.equal(capturedSdp, "v=0\nfake-offer");
-  assert.equal(session.model, "gpt-realtime-mini");
-  assert.equal(session.audio.output.voice, "cedar");
-  assert.equal(session.instructions, "custom E-Bot");
+  assert.match(capturedRoom, /^ebot-/);
+  assert.match(capturedIdentity, /^visitor-/);
 });

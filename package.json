@@ -10,5 +10,9 @@
   },
   "engines": {
     "node": ">=18"
+  },
+  "dependencies": {
+    "livekit-client": "^2.19.1",
+    "livekit-server-sdk": "^2.15.4"
   }
 }
