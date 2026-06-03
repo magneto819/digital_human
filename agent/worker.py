@@ -13,6 +13,8 @@ from dotenv import load_dotenv
 from livekit import agents, rtc
 from livekit.agents import AgentServer, AutoSubscribe
 
+from text_utils import strip_sensevoice_markers
+
 
 load_dotenv()
 
@@ -96,7 +98,7 @@ class ExternalVoiceServices:
             or payload.get("data", {}).get("text")
             or ""
         )
-        return str(text).strip()
+        return strip_sensevoice_markers(str(text))
 
     async def chat(self, messages: list[dict[str, str]]) -> str:
         headers = {

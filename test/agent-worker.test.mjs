@@ -15,6 +15,7 @@ test("agent worker documents the external LiveKit voice pipeline", async () => {
   assert.match(worker, /publish_data/);
   assert.match(worker, /AudioSource/);
   assert.match(worker, /LocalAudioTrack\.create_audio_track/);
+  assert.match(worker, /strip_sensevoice_markers/);
   assert.match(requirements, /livekit-agents/);
   assert.match(requirements, /aiohttp/);
   assert.match(readme, /python worker\.py dev/);
