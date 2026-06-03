@@ -36,6 +36,13 @@ test("homepage standby status stays as a voice-call invitation", () => {
   assert.doesNotMatch(appJs, /准备连接 DeepSeek/);
 });
 
+test("public website copy never names DeepSeek", async () => {
+  const callHtml = await readFile(new URL("../public/call.html", import.meta.url), "utf8");
+  const publicWebsiteText = [html, callHtml, appJs, css].join("\n");
+
+  assert.doesNotMatch(publicWebsiteText, /DeepSeek|deepseek|DEEPSEEK/);
+});
+
 test("mascot asset has an alpha channel for transparent display", async () => {
   const png = await readFile(new URL("../public/assets/ebot-mascot-transparent.png", import.meta.url));
 

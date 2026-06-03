@@ -516,7 +516,7 @@ function stopRecognition() {
   }
 }
 
-async function askDeepSeek() {
+async function askChatService() {
   const response = await fetch("/api/chat", {
     method: "POST",
     headers: {
@@ -577,7 +577,7 @@ async function sendMessage(text, options = {}) {
   }
 
   try {
-    const answer = await askDeepSeek();
+    const answer = await askChatService();
     appendChatMessage("assistant", answer);
     remember("assistant", answer);
 
@@ -620,7 +620,7 @@ function startBrowserVoiceFallback() {
     return;
   }
 
-  appendChatMessage("assistant", "已切换到浏览器语音识别 + DeepSeek 回复。请直接说话，或在右侧打字。");
+  appendChatMessage("assistant", "已切换到浏览器语音识别 + 聊天框回复。请直接说话，或在右侧打字。");
   setStatus("connected", "可以开始说话");
   startRecognition();
 }
@@ -647,7 +647,7 @@ async function startCall() {
     setStatus("listening", "实时语音已连接，直接说话");
   } catch (error) {
     disconnectRealtimeCall();
-    appendSystemNotice("realtime-fallback", `${getMicrophoneErrorMessage(error)} 已切换到 DeepSeek 文字聊天。`);
+    appendSystemNotice("realtime-fallback", `${getMicrophoneErrorMessage(error)} 已切换到聊天框回复。`);
     state.realtimeConnecting = false;
     setControls(true);
     startBrowserVoiceFallback();
