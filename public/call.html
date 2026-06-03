@@ -1,0 +1,139 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>势宝 E-Bot 语音通话</title>
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body data-page="call">
+    <main class="call-page-shell">
+      <section class="call-stage-panel" aria-label="势宝语音通话">
+        <a class="back-link" href="/" aria-label="返回首页">
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M15 5 8 12l7 7" />
+          </svg>
+          <span>Back</span>
+        </a>
+
+        <div class="fps-badge" aria-hidden="true">0 FPS</div>
+
+        <div class="call-status-card" aria-live="polite">
+          <span class="mini-avatar" aria-hidden="true">EB</span>
+          <div>
+            <strong>势宝邀请你语音通话</strong>
+            <span id="statusLabel">语音通话邀请</span>
+          </div>
+          <span id="connectionLabel">待连接</span>
+        </div>
+
+        <div class="call-mascot-wrap">
+          <img class="call-mascot-image" src="/assets/ebot-mascot-transparent.png" alt="势宝 E-Bot 吉祥物" />
+        </div>
+
+        <button class="mic-input-chip" id="muteButton" type="button" disabled>
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M12 15a3 3 0 0 0 3-3V7a3 3 0 0 0-6 0v5a3 3 0 0 0 3 3Z" />
+            <path d="M19 11a7 7 0 0 1-14 0" />
+            <path d="M12 18v3" />
+          </svg>
+          <div class="audio-meter" id="localMeter" aria-hidden="true">
+            <span></span>
+            <span></span>
+            <span></span>
+            <span></span>
+            <span></span>
+            <span></span>
+            <span></span>
+            <span></span>
+            <span></span>
+            <span></span>
+            <span></span>
+            <span></span>
+          </div>
+          <span>Mic input</span>
+        </button>
+
+        <div class="call-control-dock" aria-label="通话控制">
+          <button class="dock-button secondary" type="button" aria-label="摄像头关闭">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M5 7.5A2.5 2.5 0 0 1 7.5 5h5A2.5 2.5 0 0 1 15 7.5v1.1l4-2.4v11.6l-4-2.4v1.1a2.5 2.5 0 0 1-2.5 2.5h-5A2.5 2.5 0 0 1 5 16.5v-9Z" />
+              <path d="m4 4 16 16" />
+            </svg>
+          </button>
+          <button class="dock-button secondary" type="button" aria-label="声音输出">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M6 9v6h4l5 4V5l-5 4H6Z" />
+              <path d="M18 9.5a4 4 0 0 1 0 5" />
+            </svg>
+          </button>
+          <button class="dock-button primary" id="startButton" type="button" aria-label="开始语音通话">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M12 15a3 3 0 0 0 3-3V7a3 3 0 0 0-6 0v5a3 3 0 0 0 3 3Z" />
+              <path d="M19 11a7 7 0 0 1-14 0" />
+              <path d="M12 18v3" />
+            </svg>
+            <span>接听</span>
+          </button>
+          <div class="call-timer">
+            <span class="timer-dot" aria-hidden="true"></span>
+            <span id="elapsedLabel">00:00</span>
+          </div>
+          <button class="dock-button danger" id="stopButton" type="button" aria-label="结束通话">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M6.5 6.5 17.5 17.5" />
+              <path d="M17.5 6.5 6.5 17.5" />
+            </svg>
+            <span>结束</span>
+          </button>
+        </div>
+      </section>
+
+      <section class="call-chat-panel" aria-label="语音通话文字记录">
+        <header class="call-chat-header">
+          <div class="chat-title">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="m9 18 6-6-6-6" />
+            </svg>
+            <strong>Chat</strong>
+          </div>
+          <button id="clearButton" type="button">Clear</button>
+        </header>
+
+        <div class="chat-log" id="chatLog" aria-live="polite">
+          <p class="history-divider">All history loaded</p>
+          <article class="chat-message user">
+            <p>您好</p>
+          </article>
+          <article class="chat-message user">
+            <p>您是做什么的</p>
+          </article>
+          <p class="history-divider">Previous conversation</p>
+          <article class="chat-message assistant">
+            <p>你好呀，我是势宝，北京具身势能科技有限公司的 E-Bot。很高兴和你实时语音聊天。</p>
+          </article>
+          <article class="chat-message user wide">
+            <p>然后再进行维修。</p>
+          </article>
+          <article class="chat-message assistant">
+            <p>好的，明白了。维修前确认步骤很重要，这样能确保后续操作更顺利。你是在处理什么设备的维修呢？</p>
+          </article>
+          <p class="history-divider">Current conversation</p>
+          <article class="chat-message assistant current">
+            <p>你好，我在。今天想聊点什么？</p>
+          </article>
+        </div>
+
+        <form class="chat-composer" id="chatForm">
+          <label class="sr-only" for="chatInput">发送消息</label>
+          <input id="chatInput" type="text" autocomplete="off" placeholder="Type a message..." />
+          <button id="sendTextButton" type="submit">Send</button>
+        </form>
+      </section>
+    </main>
+
+    <audio id="remoteAudio" autoplay playsinline></audio>
+    <script type="module" src="/app.js"></script>
+  </body>
+</html>
