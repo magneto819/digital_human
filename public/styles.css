@@ -43,7 +43,8 @@ body {
 }
 
 button,
-input {
+input,
+select {
   font: inherit;
 }
 
@@ -822,6 +823,48 @@ body[data-page="call"] {
   font-size: 16px;
 }
 
+.call-chat-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 16px;
+  min-width: 0;
+}
+
+.voice-picker {
+  display: inline-grid;
+  grid-template-columns: auto minmax(150px, 220px);
+  gap: 10px;
+  align-items: center;
+  min-width: 0;
+}
+
+.voice-picker span {
+  color: rgba(244, 246, 251, 0.5);
+  font-size: 13px;
+  font-weight: 720;
+  white-space: nowrap;
+}
+
+.voice-picker select {
+  min-width: 0;
+  height: 38px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  background: #25262a;
+  color: rgba(244, 246, 251, 0.82);
+  outline: none;
+  padding: 0 34px 0 12px;
+  font-size: 14px;
+}
+
+.voice-picker select:focus {
+  border-color: rgba(73, 120, 238, 0.72);
+}
+
+.voice-picker select:disabled {
+  color: rgba(244, 246, 251, 0.36);
+}
+
 .chat-log {
   display: flex;
   flex-direction: column;
@@ -1219,12 +1262,31 @@ body[data-page="call"] {
     padding: 0 18px;
   }
 
+  .call-chat-actions {
+    gap: 10px;
+  }
+
   .chat-title {
     gap: 14px;
   }
 
   .chat-title strong {
     font-size: 20px;
+  }
+
+  .voice-picker {
+    grid-template-columns: 1fr;
+    gap: 4px;
+    width: min(42vw, 190px);
+  }
+
+  .voice-picker span {
+    font-size: 11px;
+  }
+
+  .voice-picker select {
+    height: 36px;
+    font-size: 13px;
   }
 
   .chat-log {

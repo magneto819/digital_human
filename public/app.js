@@ -16,10 +16,12 @@ const elements = {
   statusLabel: document.querySelector("#statusLabel"),
   statusStartButton: document.querySelector("#statusStartButton"),
   stopButton: document.querySelector("#stopButton"),
+  voiceSelect: document.querySelector("#voiceSelect"),
 };
 
 const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
 const isCallPage = elements.body.dataset.page === "call";
+const voiceStorageKey = "ebotVoiceName";
 
 const state = {
   active: false,
@@ -44,7 +46,10 @@ const state = {
   realtimeConnecting: false,
   sending: false,
   speechSupported: Boolean(SpeechRecognition),
+  speechVoices: [],
   systemNotices: new Set(),
+  savedVoiceName: "",
+  voiceSaveTimer: null,
 };
 
 const statusText = {
@@ -516,6 +521,114 @@ function stopRecognition() {
   }
 }
 
+function readSavedVoiceName() {
+  try {
+    return window.localStorage.getItem(voiceStorageKey) || "";
+  } catch {
+    return "";
+  }
+}
+
+function saveVoiceName(voiceName) {
+  try {
+    window.localStorage.setItem(voiceStorageKey, voiceName);
+  } catch {
+    // Private browsing modes can block storage; voice selection still works for the current page.
+  }
+}
+
+function isChineseVoice(voice) {
+  return voice.lang?.toLowerCase().startsWith("zh") || /Chinese|Mandarin|Putonghua|中文|普通话|國語|粤语|粵語/.test(voice.name);
+}
+
+function populateVoiceOptions() {
+  if (!elements.voiceSelect || !window.speechSynthesis) {
+    return;
+  }
+
+  const voices = window.speechSynthesis.getVoices();
+  const chineseVoices = voices.filter(isChineseVoice);
+  state.speechVoices = chineseVoices;
+  elements.voiceSelect.replaceChildren();
+
+  if (!voices.length) {
+    elements.voiceSelect.disabled = true;
+    elements.voiceSelect.append(new Option("正在加载浏览器音色", ""));
+    return;
+  }
+
+  if (!chineseVoices.length) {
+    elements.voiceSelect.disabled = true;
+    elements.voiceSelect.append(new Option("未找到中文音色", ""));
+    return;
+  }
+
+  const savedVoiceName = readSavedVoiceName();
+  chineseVoices.forEach((voice) => {
+    elements.voiceSelect.append(new Option(`${voice.name} (${voice.lang})`, voice.name));
+  });
+
+  if (savedVoiceName && chineseVoices.some((voice) => voice.name === savedVoiceName)) {
+    elements.voiceSelect.value = savedVoiceName;
+  }
+
+  state.savedVoiceName = elements.voiceSelect.value;
+  elements.voiceSelect.disabled = false;
+}
+
+function getSelectedVoice() {
+  if (!elements.voiceSelect?.value) {
+    return null;
+  }
+
+  return state.speechVoices.find((voice) => voice.name === elements.voiceSelect.value) || null;
+}
+
+function handleVoiceSelectionChange() {
+  syncSelectedVoiceName();
+}
+
+function syncSelectedVoiceName() {
+  if (!elements.voiceSelect) {
+    return;
+  }
+
+  const voiceName = elements.voiceSelect.value;
+  if (!voiceName || voiceName === state.savedVoiceName) {
+    return;
+  }
+
+  state.savedVoiceName = voiceName;
+  saveVoiceName(voiceName);
+}
+
+function startVoiceSelectionSync() {
+  if (state.voiceSaveTimer) {
+    return;
+  }
+
+  state.voiceSaveTimer = window.setInterval(syncSelectedVoiceName, 700);
+}
+
+function initializeVoicePicker() {
+  if (!elements.voiceSelect) {
+    return;
+  }
+
+  if (!window.speechSynthesis) {
+    elements.voiceSelect.replaceChildren(new Option("当前浏览器不支持音色选择", ""));
+    elements.voiceSelect.disabled = true;
+    return;
+  }
+
+  populateVoiceOptions();
+  window.speechSynthesis.addEventListener("voiceschanged", populateVoiceOptions);
+  ["input", "change", "keyup", "blur"].forEach((eventName) => {
+    elements.voiceSelect.addEventListener(eventName, handleVoiceSelectionChange);
+  });
+  startVoiceSelectionSync();
+}
+
 async function askChatService() {
   const response = await fetch("/api/chat", {
     method: "POST",
@@ -545,6 +658,10 @@ function speakText(text) {
 
   window.speechSynthesis.cancel();
   const utterance = new SpeechSynthesisUtterance(text);
+  const selectedVoice = getSelectedVoice();
+  if (selectedVoice) {
+    utterance.voice = selectedVoice;
+  }
   utterance.lang = "zh-CN";
   utterance.rate = 1;
   utterance.pitch = 1.03;
@@ -724,6 +841,7 @@ function initializeCallPage() {
   setStatus("standby");
   updateMeter(0.08);
   startFpsTicker();
+  initializeVoicePicker();
 
   elements.startButton?.addEventListener("click", startCall);
   elements.statusStartButton?.addEventListener("click", startCall);

@@ -79,6 +79,23 @@ test("voice-call page exposes live call and chat controls", async () => {
   assert.match(appJs, /new SpeechSynthesisUtterance\(text\)/);
 });
 
+test("voice-call page lets users choose and save a browser speech voice", async () => {
+  const callHtml = await readFile(new URL("../public/call.html", import.meta.url), "utf8");
+
+  assert.match(callHtml, /for="voiceSelect"/);
+  assert.match(callHtml, />音色选择</);
+  assert.match(callHtml, /id="voiceSelect"/);
+  assert.match(appJs, /speechSynthesis\.getVoices\(\)/);
+  assert.match(appJs, /speechSynthesis\.addEventListener\("voiceschanged", populateVoiceOptions\)/);
+  assert.match(appJs, /window\.localStorage\.getItem\(voiceStorageKey/);
+  assert.match(appJs, /window\.localStorage\.setItem\(voiceStorageKey/);
+  assert.match(appJs, /"keyup"/);
+  assert.match(appJs, /"blur"/);
+  assert.match(appJs, /voiceSaveTimer/);
+  assert.match(appJs, /window\.setInterval\(syncSelectedVoiceName/);
+  assert.match(appJs, /utterance\.voice = selectedVoice/);
+});
+
 test("voice recognition permission errors stop restart loops", () => {
   assert.match(appJs, /recognitionBlocked/);
   assert.match(appJs, /not-allowed/);

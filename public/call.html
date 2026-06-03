@@ -106,7 +106,15 @@
             </svg>
             <strong>Chat</strong>
           </div>
-          <button id="clearButton" type="button">Clear</button>
+          <div class="call-chat-actions">
+            <label class="voice-picker" for="voiceSelect">
+              <span>音色选择</span>
+              <select id="voiceSelect" disabled>
+                <option>正在加载浏览器音色</option>
+              </select>
+            </label>
+            <button id="clearButton" type="button">Clear</button>
+          </div>
         </header>
 
         <div class="chat-log" id="chatLog" aria-live="polite">
@@ -125,6 +133,6 @@
     </main>
 
     <audio id="remoteAudio" autoplay playsinline></audio>
-    <script type="module" src="/app.js"></script>
+    <script type="module" src="/app.js?v=voice-picker-20260603"></script>
   </body>
 </html>
