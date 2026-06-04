@@ -77,7 +77,7 @@ class ExternalConfig:
 class ExternalVoiceServices:
     def __init__(self, config: ExternalConfig) -> None:
         self.config = config
-        self.timeout = aiohttp.ClientTimeout(total=45)
+        self.timeout = aiohttp.ClientTimeout(total=120)
 
     async def transcribe(self, wav_bytes: bytes) -> str:
         headers = self._auth_headers(self.config.sensevoice_api_key)
